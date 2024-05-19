@@ -2,20 +2,32 @@
 
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { BeatLoader } from "react-spinners";
 import { JSX, SVGProps, SetStateAction } from "react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-// Example JSON data
 const messagesData = [
   {
     sender: "bot",
-    text: "Hello! I'm ChatGPT, an AI assistant. How can I help you today?",
+    text: "Hello! I'm Shanta GPT, an AI doctor. How can I help you today?",
   },
 ];
 
 export function Chat() {
   const [messages, setMessages] = useState(messagesData);
   const [inputValue, setInputValue] = useState("");
+  const [apiUrl, setApiUrl] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const storedUrl = localStorage.getItem("apiUrl");
+    if (storedUrl) {
+      setApiUrl(storedUrl);
+    } else {
+      setIsModalOpen(true);
+    }
+  }, []);
 
   const handleInputChange = (e: { target: { value: SetStateAction<string>; }; }) => {
     setInputValue(e.target.value);
@@ -30,9 +42,10 @@ export function Chat() {
     };
 
     setMessages([...messages, userMessage]);
+    setLoading(true);
 
     try {
-      const response = await fetch("https://5c93-2601-19b-a00-21b0-a60b-2a80-d1e3-5e6a.ngrok-free.app/predict", {
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -41,20 +54,35 @@ export function Chat() {
       });
 
       const data = await response.json();
+      const botMessageText = data.answer.split("Answer: ")[1];
 
-      console.log(data);
       const botMessage = {
         sender: "bot",
-        text: data.answer,
+        text: botMessageText,
       };
-
 
       setMessages((prevMessages) => [...prevMessages, botMessage]);
     } catch (error) {
       console.error("Error fetching data:", error);
     }
 
+    setLoading(false);
     setInputValue("");
+  };
+
+  const handleApiUrlChange = (e: { target: { value: SetStateAction<string>; }; }) => {
+    setApiUrl(e.target.value);
+  };
+
+  const handleSaveApiUrl = () => {
+    localStorage.setItem("apiUrl", apiUrl);
+    setIsModalOpen(false);
+  };
+
+  const handleDeleteApiUrl = () => {
+    localStorage.removeItem("apiUrl");
+    setApiUrl("");
+    setIsModalOpen(true);
   };
 
   return (
@@ -64,6 +92,9 @@ export function Chat() {
           <BotIcon className="h-6 w-6 text-gray-500 dark:text-gray-400" />
           <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-50">ChatGPT</h1>
         </div>
+        <Button size="sm" variant="secondary" onClick={handleDeleteApiUrl}>
+          Change API URL
+        </Button>
       </header>
       <div className="flex-1 overflow-y-auto px-4 py-6">
         <div className="space-y-4">
@@ -89,6 +120,11 @@ export function Chat() {
               )}
             </div>
           ))}
+          {loading && (
+            <div className="flex justify-center">
+              <BeatLoader color="#1d4ed8" />
+            </div>
+          )}
         </div>
       </div>
       <div className="bg-gray-100 px-4 py-3 dark:bg-gray-800">
@@ -100,11 +136,30 @@ export function Chat() {
             value={inputValue}
             onChange={handleInputChange}
           />
-          <Button size="sm" variant="secondary" onClick={handleSend}>
+          <Button size="sm" variant="secondary" onClick={handleSend} disabled={loading}>
             Send
           </Button>
         </div>
       </div>
+      {isModalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-gray-900 bg-opacity-50">
+          <div className="bg-white rounded-lg p-6 dark:bg-gray-800">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">Set API URL</h2>
+            <Input
+              className="mt-4 w-full rounded-md border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50"
+              placeholder="Enter API URL..."
+              type="text"
+              value={apiUrl}
+              onChange={handleApiUrlChange}
+            />
+            <div className="mt-4 flex justify-end space-x-2">
+              <Button size="sm" variant="secondary" onClick={handleSaveApiUrl}>
+                Save
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
